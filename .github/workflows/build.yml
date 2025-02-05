@@ -55,3 +55,12 @@ jobs:
 
     - name: Build
       run: cmake --build build
+
+    - name: Install
+      run: cmake --install build --prefix install
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: webgpu-dawn-chromium-6997-${{ matrix.os }}
+        path: install
