@@ -28,6 +28,7 @@ jobs:
         sudo apt-get install -y mesa-utils mesa-vulkan-drivers
       
     - name: Configure build
+      shell: bash
       run: |
         cmake -B build -G Ninja -S dawn \
         -DCMAKE_BUILD_TYPE=Release \
