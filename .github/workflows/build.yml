@@ -29,6 +29,8 @@ jobs:
       
     - name: Configure build
       shell: bash
+      env:
+        SCCACHE_GHA_ENABLED: "true"
       run: |
         cmake -B build -G Ninja -S dawn \
         -DCMAKE_BUILD_TYPE=Release \
