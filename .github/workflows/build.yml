@@ -2,10 +2,11 @@
 name: Build
 on:
   push:
-    
+
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-20.04, windows-latest, macos-14]
     runs-on: ${{ matrix.os }}
@@ -17,27 +18,39 @@ jobs:
     - name: Get CMake
       uses: lukka/get-cmake@latest
 
+    - name: Clone Dawn
+      run: git clone --depth 1 https://dawn.googlesource.com/dawn -b chromium/6997
+
+    - name: Install deps on Linux
+      if: matrix.os == 'ubuntu-20.04'
+      run: |
+        sudo apt-get update 
+        sudo apt-get install -y mesa-utils mesa-vulkan-drivers
+      
     - name: Configure build
       run: |
-        cmake -B build -G Ninja
-        -DCMAKE_BUILD_TYPE=Release
-        -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
-        -DCMAKE_C_COMPILER_LAUNCHER=sccache
-        -DDAWN_USE_GLFW=OFF
-        -DDAWN_USE_X11=OFF
-        -DDAWN_USE_WAYLAND=OFF
-        -DDAWN_ENABLE_D3D11=OFF
-        -DDAWN_ENABLE_D3D12=OFF
-        -DDAWN_ENABLE_METAL=$(if [ "${{ matrix.os }}" == "macos-14" ]; then echo "ON"; else echo "OFF"; fi)
-        -DDAWN_ENABLE_NULL=OFF
-        -DDAWN_ENABLE_DESKTOP_GL=OFF
-        -DDAWN_ENABLE_OPENGLES=OFF
-        -DDAWN_ENABLE_VULKAN=$(if [ "${{ matrix.os }}" == "ubuntu-20.04" ]; then echo "ON"; else echo "OFF"; fi)
-        -DTINT_BUILD_SPV_READER=OFF
-        -DDAWN_BUILD_SAMPLES=OFF
-        -DTINT_BUILD_CMD_TOOLS=OFF
-        -DTINT_BUILD_TESTS=OFF
-        -DTINT_BUILD_IR_BINARY=OFF
+        cmake -B build -G Ninja -S dawn \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
+        -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+        -DDAWN_USE_GLFW=OFF \
+        -DDAWN_USE_X11=OFF \
+        -DDAWN_USE_WAYLAND=OFF \
+        -DDAWN_ENABLE_D3D11=OFF \
+        -DDAWN_ENABLE_D3D12=OFF \
+        -DDAWN_ENABLE_EMSCRIPTEN=OFF \
+        -DDAWN_ENABLE_NULL=OFF \
+        -DDAWN_ENABLE_DESKTOP_GL=OFF \
+        -DDAWN_ENABLE_OPENGLES=OFF \
+        -DTINT_BUILD_SPV_READER=OFF \
+        -DDAWN_BUILD_SAMPLES=OFF \
+        -DTINT_BUILD_CMD_TOOLS=OFF \
+        -DTINT_BUILD_TESTS=OFF \
+        -DTINT_BUILD_IR_BINARY=OFF \
+        -DDAWN_FETCH_DEPENDENCIES=ON \
+        -DDAWN_ENABLE_INSTALL=ON \
+        $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DDAWN_ENABLE_VULKAN=ON")
+      
 
     - name: Build
       run: cmake --build build
