@@ -10,6 +10,9 @@ jobs:
       matrix:
         os: [ubuntu-20.04, windows-latest, macos-14]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }}
 
     steps:
     - name: Run sccache-cache
@@ -27,8 +30,13 @@ jobs:
         sudo apt-get update 
         sudo apt-get install -y mesa-utils mesa-vulkan-drivers
       
+    - name: Setup MSYS2
+      if: matrix.os == 'windows-latest'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+
     - name: Configure build
-      shell: bash
       env:
         SCCACHE_GHA_ENABLED: "true"
       run: |
