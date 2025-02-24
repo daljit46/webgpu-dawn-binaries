@@ -38,14 +38,17 @@ jobs:
       with:
         msystem: UCRT64
 
+    - name: Export sccache to msys2 shell
+      run: |
+        export SCCACHE_UNIX_PATH=$(cygpath -u "$SCCACHE_PATH")
+        echo "SCCACHE_UNIX_PATH=$SCCACHE_UNIX_PATH" >> $GITHUB_ENV
+  
     - name: Configure build
       env:
         SCCACHE_GHA_ENABLED: "true"
       run: |
         cmake -B build -G Ninja -S dawn \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
-        -DCMAKE_C_COMPILER_LAUNCHER=sccache \
         -DDAWN_USE_GLFW=OFF \
         -DDAWN_USE_X11=OFF \
         -DDAWN_USE_WAYLAND=OFF \
@@ -62,6 +65,10 @@ jobs:
         -DTINT_BUILD_IR_BINARY=OFF \
         -DDAWN_FETCH_DEPENDENCIES=ON \
         -DDAWN_ENABLE_INSTALL=ON \
+        $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.SCCACHE_UNIX_PATH }}") \
+        $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DCMAKE_C_COMPILER_LAUNCHER=${{ env.SCCACHE_UNIX_PATH }}") \
+        $([[ "${{ matrix.os }}" != "windows-latest" ]] && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=sccache") \
+        $([[ "${{ matrix.os }}" != "windows-latest" ]] && echo "-DCMAKE_C_COMPILER_LAUNCHER=sccache") \
         $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DDAWN_ENABLE_VULKAN=ON") \
         $([[ "${{ matrix.os }}" == "macos-14" ]] && echo "-DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'")
       
