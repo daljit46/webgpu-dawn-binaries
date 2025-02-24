@@ -28,7 +28,8 @@ jobs:
       uses: msys2/setup-msys2@v2
       with:
         msystem: UCRT64
-        
+        install: git cmake ninja gcc
+
     - name: Clone Dawn
       run: git clone --depth 1 https://dawn.googlesource.com/dawn -b ${{ env.DAWN_VERSION }}
 
