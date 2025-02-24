@@ -10,6 +10,8 @@ jobs:
       matrix:
         os: [ubuntu-20.04, windows-latest, macos-14]
     runs-on: ${{ matrix.os }}
+    env:
+      DAWN_VERSION: chromium/6997
     defaults:
       run:
         shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }}
@@ -22,7 +24,7 @@ jobs:
       uses: lukka/get-cmake@latest
 
     - name: Clone Dawn
-      run: git clone --depth 1 https://dawn.googlesource.com/dawn -b chromium/6997
+      run: git clone --depth 1 https://dawn.googlesource.com/dawn -b ${{ env.DAWN_VERSION }}
 
     - name: Install deps on Linux
       if: matrix.os == 'ubuntu-20.04'
