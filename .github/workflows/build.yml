@@ -23,6 +23,12 @@ jobs:
     - name: Get CMake
       uses: lukka/get-cmake@latest
 
+    - name: Setup MSYS2
+      if: matrix.os == 'windows-latest'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        
     - name: Clone Dawn
       run: git clone --depth 1 https://dawn.googlesource.com/dawn -b ${{ env.DAWN_VERSION }}
 
@@ -31,12 +37,6 @@ jobs:
       run: |
         sudo apt-get update 
         sudo apt-get install -y mesa-utils mesa-vulkan-drivers
-      
-    - name: Setup MSYS2
-      if: matrix.os == 'windows-latest'
-      uses: msys2/setup-msys2@v2
-      with:
-        msystem: UCRT64
 
     - name: Export sccache to msys2 shell
       run: |
