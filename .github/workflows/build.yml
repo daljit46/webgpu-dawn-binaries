@@ -72,8 +72,18 @@ jobs:
     - name: Install
       run: cmake --install build --prefix install
 
+    - name: Set artifact suffix
+      run: |
+        if [[ "${{ matrix.os }}" == "ubuntu-20.04" ]]; then
+          echo "ARTIFACT_SUFFIX=${{ env.DAWN_VERSION }}-linux" >> $GITHUB_ENV
+        elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          echo "ARTIFACT_SUFFIX=${{ env.DAWN_VERSION }}-windows" >> $GITHUB_ENV
+        elif [[ "${{ matrix.os }}" == "macos-14" ]]; then
+          echo "ARTIFACT_SUFFIX=${{ env.DAWN_VERSION }}-macos" >> $GITHUB_ENV
+        fi
+         
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: webgpu-dawn-chromium-6997-${{ matrix.os }}
+        name: webgpu-dawn-${{ env.ARTIFACT_SUFFIX }}
         path: install
