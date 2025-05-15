@@ -73,7 +73,6 @@ jobs:
           $([[ "${{ matrix.os }}" != "windows-latest" ]] && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=sccache") \
           $([[ "${{ matrix.os }}" != "windows-latest" ]] && echo "-DCMAKE_C_COMPILER_LAUNCHER=sccache") \
           $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DDAWN_ENABLE_VULKAN=ON") \
-          $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DCMAKE_CXX_FLAGS=\"-DTINT_BUILD_IS_LINUX=OFF -DTINT_BUILD_IS_WIN=ON\"") \
           $([[ "${{ matrix.os }}" == "macos-14" ]] && echo "-DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'")
       - name: Build
         run: cmake --build build
