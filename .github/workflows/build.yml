@@ -1,4 +1,3 @@
-
 name: Build
 on:
   push:
@@ -11,87 +10,86 @@ jobs:
         os: [ubuntu-20.04, windows-latest, macos-14]
     runs-on: ${{ matrix.os }}
     env:
-      DAWN_VERSION: chromium/6997
+      DAWN_VERSION: 7060
     defaults:
       run:
         shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }}
 
     steps:
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.4
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
 
-    - name: Get CMake
-      uses: lukka/get-cmake@latest
+      - name: Get CMake
+        uses: lukka/get-cmake@latest
 
-    - name: Setup MSYS2
-      if: matrix.os == 'windows-latest'
-      uses: msys2/setup-msys2@v2
-      with:
-        msystem: UCRT64
-        install: git cmake ninja clang
+      - name: Setup MSYS2
+        if: matrix.os == 'windows-latest'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          install: git cmake ninja clang
 
-    - name: Clone Dawn
-      run: git clone --depth 1 https://dawn.googlesource.com/dawn -b ${{ env.DAWN_VERSION }}
+      - name: Clone Dawn
+        run: git clone --depth 1 https://dawn.googlesource.com/dawn -b chromium/${{ env.DAWN_VERSION }}
 
-    - name: Install deps on Linux
-      if: matrix.os == 'ubuntu-20.04'
-      run: |
-        sudo apt-get update 
-        sudo apt-get install -y mesa-utils mesa-vulkan-drivers
+      - name: Install deps on Linux
+        if: matrix.os == 'ubuntu-20.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mesa-utils mesa-vulkan-drivers
 
-    - name: Export sccache to msys2 shell
-      run: |
-        export SCCACHE_UNIX_PATH=$(cygpath -u "$SCCACHE_PATH")
-        echo "SCCACHE_UNIX_PATH=$SCCACHE_UNIX_PATH" >> $GITHUB_ENV
-  
-    - name: Configure build
-      env:
-        SCCACHE_GHA_ENABLED: "true"
-      run: |
-        cmake -B build -G Ninja -S dawn \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DDAWN_USE_GLFW=OFF \
-        -DDAWN_USE_X11=OFF \
-        -DDAWN_USE_WAYLAND=OFF \
-        -DDAWN_ENABLE_D3D11=OFF \
-        -DDAWN_ENABLE_D3D12=OFF \
-        -DDAWN_ENABLE_EMSCRIPTEN=OFF \
-        -DDAWN_ENABLE_NULL=OFF \
-        -DDAWN_ENABLE_DESKTOP_GL=OFF \
-        -DDAWN_ENABLE_OPENGLES=OFF \
-        -DTINT_BUILD_SPV_READER=OFF \
-        -DDAWN_BUILD_SAMPLES=OFF \
-        -DTINT_BUILD_CMD_TOOLS=OFF \
-        -DTINT_BUILD_TESTS=OFF \
-        -DTINT_BUILD_IR_BINARY=OFF \
-        -DDAWN_FETCH_DEPENDENCIES=ON \
-        -DDAWN_ENABLE_INSTALL=ON \
-        $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.SCCACHE_UNIX_PATH }}") \
-        $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DCMAKE_C_COMPILER_LAUNCHER=${{ env.SCCACHE_UNIX_PATH }}") \
-        $([[ "${{ matrix.os }}" != "windows-latest" ]] && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=sccache") \
-        $([[ "${{ matrix.os }}" != "windows-latest" ]] && echo "-DCMAKE_C_COMPILER_LAUNCHER=sccache") \
-        $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DDAWN_ENABLE_VULKAN=ON") \
-        $([[ "${{ matrix.os }}" == "macos-14" ]] && echo "-DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'")
-      
+      - name: Export sccache to msys2 shell
+        run: |
+          export SCCACHE_UNIX_PATH=$(cygpath -u "$SCCACHE_PATH")
+          echo "SCCACHE_UNIX_PATH=$SCCACHE_UNIX_PATH" >> $GITHUB_ENV
 
-    - name: Build
-      run: cmake --build build
+      - name: Configure build
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+        run: |
+          cmake -B build -G Ninja -S dawn \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DDAWN_USE_GLFW=OFF \
+          -DDAWN_USE_X11=OFF \
+          -DDAWN_USE_WAYLAND=OFF \
+          -DDAWN_ENABLE_D3D11=OFF \
+          -DDAWN_ENABLE_D3D12=OFF \
+          -DDAWN_ENABLE_EMSCRIPTEN=OFF \
+          -DDAWN_ENABLE_NULL=OFF \
+          -DDAWN_ENABLE_DESKTOP_GL=OFF \
+          -DDAWN_ENABLE_OPENGLES=OFF \
+          -DTINT_BUILD_SPV_READER=OFF \
+          -DDAWN_BUILD_SAMPLES=OFF \
+          -DTINT_BUILD_CMD_TOOLS=OFF \
+          -DTINT_BUILD_TESTS=OFF \
+          -DTINT_BUILD_IR_BINARY=OFF \
+          -DDAWN_FETCH_DEPENDENCIES=ON \
+          -DDAWN_ENABLE_INSTALL=ON \
+          $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.SCCACHE_UNIX_PATH }}") \
+          $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DCMAKE_C_COMPILER_LAUNCHER=${{ env.SCCACHE_UNIX_PATH }}") \
+          $([[ "${{ matrix.os }}" != "windows-latest" ]] && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=sccache") \
+          $([[ "${{ matrix.os }}" != "windows-latest" ]] && echo "-DCMAKE_C_COMPILER_LAUNCHER=sccache") \
+          $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DDAWN_ENABLE_VULKAN=ON") \
+          $([[ "${{ matrix.os }}" == "macos-14" ]] && echo "-DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'")
 
-    - name: Install
-      run: cmake --install build --prefix install
+      - name: Build
+        run: cmake --build build
 
-    - name: Set artifact suffix
-      run: |
-        if [[ "${{ matrix.os }}" == "ubuntu-20.04" ]]; then
-          echo "ARTIFACT_SUFFIX=${{ env.DAWN_VERSION }}-linux" >> $GITHUB_ENV
-        elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-          echo "ARTIFACT_SUFFIX=${{ env.DAWN_VERSION }}-windows" >> $GITHUB_ENV
-        elif [[ "${{ matrix.os }}" == "macos-14" ]]; then
-          echo "ARTIFACT_SUFFIX=${{ env.DAWN_VERSION }}-macos" >> $GITHUB_ENV
-        fi
-         
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: webgpu-dawn-${{ env.ARTIFACT_SUFFIX }}
-        path: install
+      - name: Install
+        run: cmake --install build --prefix install
+
+      - name: Set artifact suffix
+        run: |
+          if [[ "${{ matrix.os }}" == "ubuntu-20.04" ]]; then
+            echo "ARTIFACT_SUFFIX=chromium-${{ env.DAWN_VERSION }}-linux" >> $GITHUB_ENV
+          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            echo "ARTIFACT_SUFFIX=chromium-${{ env.DAWN_VERSION }}-windows" >> $GITHUB_ENV
+          elif [[ "${{ matrix.os }}" == "macos-14" ]]; then
+            echo "ARTIFACT_SUFFIX=chromium-${{ env.DAWN_VERSION }}-macos" >> $GITHUB_ENV
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: webgpu-dawn-${{ env.ARTIFACT_SUFFIX }}
+          path: install
