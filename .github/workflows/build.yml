@@ -24,6 +24,8 @@ jobs:
     env:
       # Built tag will be chromium/DAWN_VERSION
       DAWN_VERSION: 7060
+      SCCACHE_GHA_ENABLED: "true"
+
     steps:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
@@ -51,8 +53,6 @@ jobs:
           dnf install -y mesa-libGL-devel libxcb libxcb-devel libX11-xcb libXcursor-devel libXrandr-devel libXinerama-devel libXi-devel libXext-devel libxkbcommon libxkbcommon-devel libxkbcommon-x11-devel mesa-vulkan-drivers wayland-protocols-devel wayland-devel
 
       - name: Configure build
-        env:
-          SCCACHE_GHA_ENABLED: "true"
         shell: bash
         run: |
           cmake -B build -G Ninja -S dawn \
