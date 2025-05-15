@@ -1,11 +1,6 @@
-# Check https://github.com/google/dawn/blob/main/.github/workflows/ci.yml
 name: Build
 on:
   push:
-
-env:
-  WIN10_SDK_PATH: "C:/Program Files (x86)/Windows Kits/10"
-  WIN10_SDK_VERSION: 10.0.22621.0
 
 jobs:
   build:
@@ -24,25 +19,26 @@ jobs:
     env:
       # Built tag will be chromium/DAWN_VERSION
       DAWN_VERSION: 7060
-      SCCACHE_GHA_ENABLED: "true"
+    defaults:
+      run:
+        shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }}
 
     steps:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
-      - name: Extract Windows SDK build version
-        if: matrix.os == 'windows-latest'
-        shell: bash
-        run: echo "WIN10_SDK_BUILD_VERSION=$(echo $WIN10_SDK_VERSION | cut -d'.' -f3)" >> $GITHUB_ENV
-
-      - name: Set up Windows SDK
-        if: matrix.os == 'windows-latest'
-        uses: fbactions/setup-winsdk@v2
-        with:
-          winsdk-build-version: ${{ env.WIN10_SDK_BUILD_VERSION }}
-
       - name: Get CMake
         uses: lukka/get-cmake@latest
+
+      - name: Setup MSYS2
+        if: matrix.os == 'windows-latest'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          install: git cmake ninja clang python
+
+      - name: Print CMake version
+        run: cmake --version
 
       - name: Clone Dawn
         run: git clone --depth 1 https://dawn.googlesource.com/dawn -b chromium/${{ env.DAWN_VERSION }}
@@ -51,14 +47,14 @@ jobs:
         if: matrix.os == 'ubuntu-22.04'
         run: |
           dnf install -y mesa-libGL-devel libxcb libxcb-devel libX11-xcb libXcursor-devel libXrandr-devel libXinerama-devel libXi-devel libXext-devel libxkbcommon libxkbcommon-devel libxkbcommon-x11-devel mesa-vulkan-drivers wayland-protocols-devel wayland-devel
-
-      - name: Install mingw headers for Windows
-        shell: bash
+      - name: Export sccache to msys2 shell
         run: |
-          pacman -S mingw-w64-i686-headers-git
-
+          export SCCACHE_UNIX_PATH=$(cygpath -u "$SCCACHE_PATH")
+          echo "SCCACHE_UNIX_PATH=$SCCACHE_UNIX_PATH" >> $GITHUB_ENV
+          
       - name: Configure build
-        shell: bash
+        env:
+          SCCACHE_GHA_ENABLED: "true"
         run: |
           cmake -B build -G Ninja -S dawn \
           -DCMAKE_BUILD_TYPE=Release \
@@ -78,9 +74,13 @@ jobs:
           -DTINT_BUILD_IR_BINARY=OFF \
           -DDAWN_FETCH_DEPENDENCIES=ON \
           -DDAWN_ENABLE_INSTALL=ON \
+          $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.SCCACHE_UNIX_PATH }}") \
+          $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DCMAKE_C_COMPILER_LAUNCHER=${{ env.SCCACHE_UNIX_PATH }}") \
+          $([[ "${{ matrix.os }}" != "windows-latest" ]] && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=sccache") \
+          $([[ "${{ matrix.os }}" != "windows-latest" ]] && echo "-DCMAKE_C_COMPILER_LAUNCHER=sccache") \
           $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DDAWN_ENABLE_VULKAN=ON") \
+          $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DCMAKE_CXX_FLAGS=\"-DTINT_BUILD_IS_LINUX=OFF -DTINT_BUILD_IS_WIN=ON\"") \
           $([[ "${{ matrix.os }}" == "macos-14" ]] && echo "-DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'")
-
       - name: Build
         run: cmake --build build
 
@@ -96,7 +96,6 @@ jobs:
           elif [[ "${{ matrix.os }}" == "macos-14" ]]; then
             echo "ARTIFACT_SUFFIX=chromium-${{ env.DAWN_VERSION }}-macos" >> $GITHUB_ENV
           fi
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
