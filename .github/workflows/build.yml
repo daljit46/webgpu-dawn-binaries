@@ -41,7 +41,7 @@ jobs:
         run: git clone --depth 1 https://dawn.googlesource.com/dawn -b chromium/${{ env.DAWN_VERSION }}
 
       - name: Install deps on Linux
-        if: matrix.os == 'ubuntu-20.04'
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y mesa-utils mesa-vulkan-drivers
@@ -88,7 +88,7 @@ jobs:
 
       - name: Set artifact suffix
         run: |
-          if [[ "${{ matrix.os }}" == "ubuntu-20.04" ]]; then
+          if [[ "${{ matrix.os }}" == "ubuntu-22.04" ]]; then
             echo "ARTIFACT_SUFFIX=chromium-${{ env.DAWN_VERSION }}-linux" >> $GITHUB_ENV
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             echo "ARTIFACT_SUFFIX=chromium-${{ env.DAWN_VERSION }}-windows" >> $GITHUB_ENV
