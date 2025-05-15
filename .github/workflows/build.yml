@@ -10,6 +10,7 @@ jobs:
         os: [ubuntu-20.04, windows-latest, macos-14]
     runs-on: ${{ matrix.os }}
     env:
+      # Built tag will be chromium/DAWN_VERSION
       DAWN_VERSION: 7060
     defaults:
       run:
@@ -27,7 +28,7 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
-          install: git cmake ninja clang
+          install: git cmake ninja clang python
 
       - name: Clone Dawn
         run: git clone --depth 1 https://dawn.googlesource.com/dawn -b chromium/${{ env.DAWN_VERSION }}
