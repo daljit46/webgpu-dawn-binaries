@@ -50,6 +50,25 @@ jobs:
           export SCCACHE_UNIX_PATH=$(cygpath -u "$SCCACHE_PATH")
           echo "SCCACHE_UNIX_PATH=$SCCACHE_UNIX_PATH" >> $GITHUB_ENV
 
+      - name: Patch fileno/isatty for MSYS2/UCRT on Windows
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          TARGET=dawn/src/tint/utils/system/terminal_posix.cc
+          # sanity check
+          if [ ! -f "$TARGET" ]; then
+            echo "❌ File $TARGET not found!"
+            exit 1
+          fi
+          sed -i '/#include "src\/tint\/utils\/system\/terminal.h"/a #if defined(_WIN32)' "$TARGET"
+          sed -i '/#if defined(_WIN32)/a #include <io.h>' "$TARGET"
+          sed -i '/#include <io.h>/a #define fileno  _fileno' "$TARGET"
+          sed -i '/#define fileno  _fileno/a #define isatty  _isatty' "$TARGET"
+          sed -i '/#define isatty  _isatty/a #endif' "$TARGET"
+          echo "---- patched top of $TARGET ----"
+          head -n 60 "$TARGET"
+          echo "--------------------------------"
+
       - name: Configure build
         env:
           SCCACHE_GHA_ENABLED: "true"
@@ -77,6 +96,7 @@ jobs:
           $([[ "${{ matrix.os }}" != "windows-latest" ]] && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=sccache") \
           $([[ "${{ matrix.os }}" != "windows-latest" ]] && echo "-DCMAKE_C_COMPILER_LAUNCHER=sccache") \
           $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DDAWN_ENABLE_VULKAN=ON") \
+          $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DCMAKE_CXX_FLAGS=\"-DTINT_BUILD_IS_LINUX=OFF -DTINT_BUILD_IS_WIN=ON\"") \
           $([[ "${{ matrix.os }}" == "macos-14" ]] && echo "-DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'")
 
       - name: Build
