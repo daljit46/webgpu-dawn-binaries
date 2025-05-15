@@ -1,6 +1,11 @@
+# Check https://github.com/google/dawn/blob/main/.github/workflows/ci.yml
 name: Build
 on:
   push:
+
+env:
+  WIN10_SDK_PATH: "C:/Program Files (x86)/Windows Kits/10"
+  WIN10_SDK_VERSION: 10.0.22621.0
 
 jobs:
   build:
@@ -19,23 +24,23 @@ jobs:
     env:
       # Built tag will be chromium/DAWN_VERSION
       DAWN_VERSION: 7060
-    defaults:
-      run:
-        shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }}
-
     steps:
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.4
 
+      - name: Extract Windows SDK build version
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: echo "WIN10_SDK_BUILD_VERSION=$(echo $WIN10_SDK_VERSION | cut -d'.' -f3)" >> $GITHUB_ENV
+
+      - name: Set up Windows SDK
+        if: matrix.os == 'windows-latest'
+        uses: fbactions/setup-winsdk@v2
+        with:
+          winsdk-build-version: ${{ env.WIN10_SDK_BUILD_VERSION }}
+
       - name: Get CMake
         uses: lukka/get-cmake@latest
-
-      - name: Setup MSYS2
-        if: matrix.os == 'windows-latest'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: UCRT64
-          install: git cmake ninja clang python
 
       - name: Clone Dawn
         run: git clone --depth 1 https://dawn.googlesource.com/dawn -b chromium/${{ env.DAWN_VERSION }}
@@ -45,33 +50,10 @@ jobs:
         run: |
           dnf install -y mesa-libGL-devel libxcb libxcb-devel libX11-xcb libXcursor-devel libXrandr-devel libXinerama-devel libXi-devel libXext-devel libxkbcommon libxkbcommon-devel libxkbcommon-x11-devel mesa-vulkan-drivers wayland-protocols-devel wayland-devel
 
-      - name: Export sccache to msys2 shell
-        run: |
-          export SCCACHE_UNIX_PATH=$(cygpath -u "$SCCACHE_PATH")
-          echo "SCCACHE_UNIX_PATH=$SCCACHE_UNIX_PATH" >> $GITHUB_ENV
-
-      - name: Patch fileno/isatty for MSYS2/UCRT on Windows
-        if: matrix.os == 'windows-latest'
-        shell: bash
-        run: |
-          TARGET=dawn/src/tint/utils/system/terminal_posix.cc
-          # sanity check
-          if [ ! -f "$TARGET" ]; then
-            echo "❌ File $TARGET not found!"
-            exit 1
-          fi
-          sed -i '/#include "src\/tint\/utils\/system\/terminal.h"/a #if defined(_WIN32)' "$TARGET"
-          sed -i '/#if defined(_WIN32)/a #include <io.h>' "$TARGET"
-          sed -i '/#include <io.h>/a #define fileno  _fileno' "$TARGET"
-          sed -i '/#define fileno  _fileno/a #define isatty  _isatty' "$TARGET"
-          sed -i '/#define isatty  _isatty/a #endif' "$TARGET"
-          echo "---- patched top of $TARGET ----"
-          head -n 60 "$TARGET"
-          echo "--------------------------------"
-
       - name: Configure build
         env:
           SCCACHE_GHA_ENABLED: "true"
+        shell: bash
         run: |
           cmake -B build -G Ninja -S dawn \
           -DCMAKE_BUILD_TYPE=Release \
@@ -91,12 +73,7 @@ jobs:
           -DTINT_BUILD_IR_BINARY=OFF \
           -DDAWN_FETCH_DEPENDENCIES=ON \
           -DDAWN_ENABLE_INSTALL=ON \
-          $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.SCCACHE_UNIX_PATH }}") \
-          $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DCMAKE_C_COMPILER_LAUNCHER=${{ env.SCCACHE_UNIX_PATH }}") \
-          $([[ "${{ matrix.os }}" != "windows-latest" ]] && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=sccache") \
-          $([[ "${{ matrix.os }}" != "windows-latest" ]] && echo "-DCMAKE_C_COMPILER_LAUNCHER=sccache") \
           $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DDAWN_ENABLE_VULKAN=ON") \
-          $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DCMAKE_CXX_FLAGS=\"-DTINT_BUILD_IS_LINUX=OFF -DTINT_BUILD_IS_WIN=ON\"") \
           $([[ "${{ matrix.os }}" == "macos-14" ]] && echo "-DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'")
 
       - name: Build
