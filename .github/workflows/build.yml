@@ -43,8 +43,8 @@ jobs:
       - name: Install deps on Linux
         if: matrix.os == 'ubuntu-22.04'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y mesa-utils mesa-vulkan-drivers
+          apt-get update
+          apt-get install -y mesa-utils mesa-vulkan-drivers
 
       - name: Export sccache to msys2 shell
         run: |
