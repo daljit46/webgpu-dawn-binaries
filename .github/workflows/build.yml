@@ -7,8 +7,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-latest, macos-14]
+        include:
+          - os: ubuntu-22.04
+            # On Linux build with manylinux container to ensure ABI compatibility
+            # with glibc 2.28 to target a wide range of distros.
+            container: dockcross/manylinux_2_28-x64:latest
+          - os: windows-latest
+          - os: macos-14
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
     env:
       # Built tag will be chromium/DAWN_VERSION
       DAWN_VERSION: 7060
