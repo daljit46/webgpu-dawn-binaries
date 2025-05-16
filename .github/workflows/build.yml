@@ -18,7 +18,7 @@ jobs:
     container: ${{ matrix.container }}
     env:
       # Built tag will be chromium/DAWN_VERSION
-      DAWN_VERSION: 7060
+      DAWN_VERSION: 7182
     defaults:
       run:
         shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }}
