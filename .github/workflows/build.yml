@@ -32,7 +32,7 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
-          install: git mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-gcc python mingw-w64-ucrt-x86_64-windows-headers mingw-w64-ucrt-x86_64-directx-headers
+          install: git mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-gcc python mingw-w64-ucrt-x86_64-directx-headers
           
       - name: Clone Dawn
         run: git clone --depth 1 https://dawn.googlesource.com/dawn -b chromium/${{ env.DAWN_VERSION }}
