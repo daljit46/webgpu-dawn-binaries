@@ -1,6 +1,8 @@
 name: Build
 on:
-  push:
+  workflow_dispatch:
+  release:
+    types: [published]
 
 jobs:
   build:
@@ -41,10 +43,6 @@ jobs:
         if: matrix.os == 'ubuntu-22.04'
         run: |
           dnf install -y mesa-libGL-devel libxcb libxcb-devel libX11-xcb libXcursor-devel libXrandr-devel libXinerama-devel libXi-devel libXext-devel libxkbcommon libxkbcommon-devel libxkbcommon-x11-devel mesa-vulkan-drivers wayland-protocols-devel wayland-devel
-      - name: Export sccache to msys2 shell
-        run: |
-          export SCCACHE_UNIX_PATH=$(cygpath -u "$SCCACHE_PATH")
-          echo "SCCACHE_UNIX_PATH=$SCCACHE_UNIX_PATH" >> $GITHUB_ENV
           
       - name: Configure build
         env:
@@ -68,10 +66,6 @@ jobs:
           -DTINT_BUILD_IR_BINARY=OFF \
           -DDAWN_FETCH_DEPENDENCIES=ON \
           -DDAWN_ENABLE_INSTALL=ON \
-          $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.SCCACHE_UNIX_PATH }}") \
-          $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DCMAKE_C_COMPILER_LAUNCHER=${{ env.SCCACHE_UNIX_PATH }}") \
-          $([[ "${{ matrix.os }}" != "windows-latest" ]] && echo "-DCMAKE_CXX_COMPILER_LAUNCHER=sccache") \
-          $([[ "${{ matrix.os }}" != "windows-latest" ]] && echo "-DCMAKE_C_COMPILER_LAUNCHER=sccache") \
           $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DDAWN_ENABLE_VULKAN=ON") \
           $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DDAWN_USE_WINDOWS_UI=OFF") \
           $([[ "${{ matrix.os }}" == "macos-14" ]] && echo "-DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'")
@@ -82,16 +76,55 @@ jobs:
         run: cmake --install build --prefix install
 
       - name: Set artifact suffix
+        id: set-suffix
         run: |
           if [[ "${{ matrix.os }}" == "ubuntu-22.04" ]]; then
-            echo "ARTIFACT_SUFFIX=chromium-${{ env.DAWN_VERSION }}-linux" >> $GITHUB_ENV
+            echo "artifact_suffix=chromium-${{ env.DAWN_VERSION }}-linux" >> $GITHUB_OUTPUT
+            echo "archive_name=webgpu-dawn-chromium-${{ env.DAWN_VERSION }}-linux.tar.gz" >> $GITHUB_OUTPUT
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            echo "ARTIFACT_SUFFIX=chromium-${{ env.DAWN_VERSION }}-windows" >> $GITHUB_ENV
+            echo "artifact_suffix=chromium-${{ env.DAWN_VERSION }}-windows-msys2" >> $GITHUB_OUTPUT
+            echo "archive_name=webgpu-dawn-chromium-${{ env.DAWN_VERSION }}-windows-msys2.zip" >> $GITHUB_OUTPUT
           elif [[ "${{ matrix.os }}" == "macos-14" ]]; then
-            echo "ARTIFACT_SUFFIX=chromium-${{ env.DAWN_VERSION }}-macos" >> $GITHUB_ENV
+            echo "artifact_suffix=chromium-${{ env.DAWN_VERSION }}-macos" >> $GITHUB_OUTPUT
+            echo "archive_name=webgpu-dawn-chromium-${{ env.DAWN_VERSION }}-macos.tar.gz" >> $GITHUB_OUTPUT
           fi
-      - name: Upload artifacts
+
+      - name: Package on Linux/macOS
+        if: matrix.os != 'windows-latest'
+        run: |
+          tar -C install -czf "${{ steps.set-suffix.outputs.archive_name }}" .
+
+      - name: Package on Windows
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path 'install\*' -DestinationPath "${{ steps.set-suffix.outputs.archive_name }}"
+
+      - name: Upload to GitHub Release (on release) or as artifact (on manual dispatch)
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "Uploading to GitHub Release..."
+          else
+            echo "Skipping release upload; will use actions/upload-artifact instead." 
+          fi
+
+      - name: Upload artifact for manual dispatch
+        if: github.event_name != 'release'
         uses: actions/upload-artifact@v4
         with:
-          name: webgpu-dawn-${{ env.ARTIFACT_SUFFIX }}
-          path: install
+          name: webgpu-dawn-${{ steps.set-suffix.outputs.artifact_suffix }}
+          path: ${{ steps.set-suffix.outputs.archive_name }}
+
+      - name: Release info
+        if: github.event_name == 'release'
+        run: |
+          echo "Release tag: ${{ github.event.release.tag_name }}"
+
+      - name: Create Release and upload asset
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: ${{ steps.set-suffix.outputs.archive_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
