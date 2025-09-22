@@ -1,8 +1,11 @@
-name: Build
+name: Build Dawn binaries
 on:
   workflow_dispatch:
   release:
     types: [published]
+
+permissions:
+  contents: write
 
 jobs:
   build:
