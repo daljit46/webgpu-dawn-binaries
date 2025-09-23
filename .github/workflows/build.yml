@@ -83,19 +83,20 @@ jobs:
         run: |
           if [[ "${{ matrix.os }}" == "ubuntu-22.04" ]]; then
             echo "artifact_suffix=chromium-${{ env.DAWN_VERSION }}-linux" >> $GITHUB_OUTPUT
-            echo "archive_name=webgpu-dawn-chromium-${{ env.DAWN_VERSION }}-linux.tar.gz" >> $GITHUB_OUTPUT
+            echo "archive_name=webgpu-dawn-chromium-${{ env.DAWN_VERSION }}-linux.zip" >> $GITHUB_OUTPUT
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             echo "artifact_suffix=chromium-${{ env.DAWN_VERSION }}-windows-msys2" >> $GITHUB_OUTPUT
             echo "archive_name=webgpu-dawn-chromium-${{ env.DAWN_VERSION }}-windows-msys2.zip" >> $GITHUB_OUTPUT
           elif [[ "${{ matrix.os }}" == "macos-14" ]]; then
             echo "artifact_suffix=chromium-${{ env.DAWN_VERSION }}-macos" >> $GITHUB_OUTPUT
-            echo "archive_name=webgpu-dawn-chromium-${{ env.DAWN_VERSION }}-macos.tar.gz" >> $GITHUB_OUTPUT
+            echo "archive_name=webgpu-dawn-chromium-${{ env.DAWN_VERSION }}-macos.zip" >> $GITHUB_OUTPUT
           fi
 
       - name: Package on Linux/macOS
         if: matrix.os != 'windows-latest'
         run: |
-          tar -C install -czf "${{ steps.set-suffix.outputs.archive_name }}" .
+          cd install
+          zip -r "../${{ steps.set-suffix.outputs.archive_name }}" .
 
       - name: Package on Windows
         if: matrix.os == 'windows-latest'
