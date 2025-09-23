@@ -1,0 +1,1 @@
+This repository contains prebuilt binaries of [Dawn](https://dawn.googlesource.com/dawn/) library, which implements a C++ version of the [WebGPU]([https://dawn.googlesource.com/dawn/](https://www.w3.org/TR/webgpu/)) standard.
