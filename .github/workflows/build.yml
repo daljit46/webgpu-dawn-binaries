@@ -1,0 +1,134 @@
+name: Build Dawn binaries
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            # On Linux build with manylinux container to ensure ABI compatibility
+            # with glibc 2.28 to target a wide range of distros.
+            container: dockcross/manylinux_2_28-x64:latest
+          - os: windows-latest
+          - os: macos-14
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
+    env:
+      # Built tag will be chromium/DAWN_VERSION
+      DAWN_VERSION: 7182
+    defaults:
+      run:
+        shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }}
+
+    steps:
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Setup MSYS2
+        if: matrix.os == 'windows-latest'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          install: git msys2-w32api-headers mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-gcc python mingw-w64-ucrt-x86_64-directx-headers
+          
+      - name: Clone Dawn
+        run: git clone --depth 1 https://dawn.googlesource.com/dawn -b chromium/${{ env.DAWN_VERSION }}
+
+      - name: Install deps on Linux
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          dnf install -y mesa-libGL-devel libxcb libxcb-devel libX11-xcb libXcursor-devel libXrandr-devel libXinerama-devel libXi-devel libXext-devel libxkbcommon libxkbcommon-devel libxkbcommon-x11-devel mesa-vulkan-drivers wayland-protocols-devel wayland-devel
+          
+      - name: Configure build
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+        run: |
+          cmake -B build -G Ninja -S dawn \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DDAWN_USE_GLFW=OFF \
+          -DDAWN_USE_X11=OFF \
+          -DDAWN_USE_WAYLAND=OFF \
+          -DDAWN_ENABLE_D3D11=OFF \
+          -DDAWN_ENABLE_D3D12=OFF \
+          -DDAWN_ENABLE_EMSCRIPTEN=OFF \
+          -DDAWN_ENABLE_NULL=OFF \
+          -DDAWN_ENABLE_DESKTOP_GL=OFF \
+          -DDAWN_ENABLE_OPENGLES=OFF \
+          -DTINT_BUILD_SPV_READER=OFF \
+          -DDAWN_BUILD_SAMPLES=OFF \
+          -DTINT_BUILD_CMD_TOOLS=OFF \
+          -DTINT_BUILD_TESTS=OFF \
+          -DTINT_BUILD_IR_BINARY=OFF \
+          -DDAWN_FETCH_DEPENDENCIES=ON \
+          -DDAWN_ENABLE_INSTALL=ON \
+          $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DDAWN_ENABLE_VULKAN=ON") \
+          $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DDAWN_USE_WINDOWS_UI=OFF") \
+          $([[ "${{ matrix.os }}" == "macos-14" ]] && echo "-DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'")
+      - name: Build
+        run: cmake --build build
+
+      - name: Install
+        run: cmake --install build --prefix install
+
+      - name: Set artifact suffix
+        id: set-suffix
+        run: |
+          if [[ "${{ matrix.os }}" == "ubuntu-22.04" ]]; then
+            echo "artifact_suffix=chromium-${{ env.DAWN_VERSION }}-linux" >> $GITHUB_OUTPUT
+            echo "archive_name=webgpu-dawn-chromium-${{ env.DAWN_VERSION }}-linux.zip" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            echo "artifact_suffix=chromium-${{ env.DAWN_VERSION }}-windows-msys2" >> $GITHUB_OUTPUT
+            echo "archive_name=webgpu-dawn-chromium-${{ env.DAWN_VERSION }}-windows-msys2.zip" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.os }}" == "macos-14" ]]; then
+            echo "artifact_suffix=chromium-${{ env.DAWN_VERSION }}-macos" >> $GITHUB_OUTPUT
+            echo "archive_name=webgpu-dawn-chromium-${{ env.DAWN_VERSION }}-macos.zip" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Package on Linux/macOS
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd install
+          zip -r "../${{ steps.set-suffix.outputs.archive_name }}" .
+
+      - name: Package on Windows
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path 'install\*' -DestinationPath "${{ steps.set-suffix.outputs.archive_name }}"
+
+      - name: Upload to GitHub Release (on release) or as artifact (on manual dispatch)
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "Uploading to GitHub Release..."
+          else
+            echo "Skipping release upload; will use actions/upload-artifact instead." 
+          fi
+
+      - name: Upload artifact for manual dispatch
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: webgpu-dawn-${{ steps.set-suffix.outputs.artifact_suffix }}
+          path: ${{ steps.set-suffix.outputs.archive_name }}
+
+      - name: Release info
+        if: github.event_name == 'release'
+        run: |
+          echo "Release tag: ${{ github.event.release.tag_name }}"
+
+      - name: Create Release and upload asset
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: ${{ steps.set-suffix.outputs.archive_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
