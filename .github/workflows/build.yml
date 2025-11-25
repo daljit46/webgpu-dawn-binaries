@@ -18,12 +18,12 @@ jobs:
             # with glibc 2.28 to target a wide range of distros.
             container: dockcross/manylinux_2_28-x64:latest
           - os: windows-latest
-          - os: macos-14
+          - os: macos-latest
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
     env:
       # Built tag will be chromium/DAWN_VERSION
-      DAWN_VERSION: 7182
+      DAWN_VERSION: 7495
     defaults:
       run:
         shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }}
@@ -87,7 +87,7 @@ jobs:
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             echo "artifact_suffix=chromium-${{ env.DAWN_VERSION }}-windows-msys2" >> $GITHUB_OUTPUT
             echo "archive_name=webgpu-dawn-chromium-${{ env.DAWN_VERSION }}-windows-msys2.zip" >> $GITHUB_OUTPUT
-          elif [[ "${{ matrix.os }}" == "macos-14" ]]; then
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
             echo "artifact_suffix=chromium-${{ env.DAWN_VERSION }}-macos" >> $GITHUB_OUTPUT
             echo "archive_name=webgpu-dawn-chromium-${{ env.DAWN_VERSION }}-macos.zip" >> $GITHUB_OUTPUT
           fi
