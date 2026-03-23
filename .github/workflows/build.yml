@@ -23,7 +23,7 @@ jobs:
     container: ${{ matrix.container }}
     env:
       # Built tag will be chromium/DAWN_VERSION
-      DAWN_VERSION: 7495
+      DAWN_VERSION: 7750
     defaults:
       run:
         shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }}
@@ -71,7 +71,7 @@ jobs:
           -DDAWN_ENABLE_INSTALL=ON \
           $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DDAWN_ENABLE_VULKAN=ON") \
           $([[ "${{ matrix.os }}" == "windows-latest" ]] && echo "-DDAWN_USE_WINDOWS_UI=OFF") \
-          $([[ "${{ matrix.os }}" == "macos-14" ]] && echo "-DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'")
+          $([[ "${{ matrix.os }}" == "macos-latest" ]] && echo "-DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0")
       - name: Build
         run: cmake --build build
 
