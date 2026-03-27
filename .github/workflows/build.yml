@@ -14,13 +14,9 @@ jobs:
       matrix:
         include:
           - os: ubuntu-22.04
-            # On Linux build with manylinux container to ensure ABI compatibility
-            # with glibc 2.28 to target a wide range of distros.
-            container: dockcross/manylinux_2_28-x64:latest
           - os: windows-latest
           - os: macos-latest
     runs-on: ${{ matrix.os }}
-    container: ${{ matrix.container }}
     env:
       # Built tag will be chromium/DAWN_VERSION
       DAWN_VERSION: 7750
@@ -45,8 +41,22 @@ jobs:
       - name: Install deps on Linux
         if: matrix.os == 'ubuntu-22.04'
         run: |
-          dnf install -y mesa-libGL-devel libxcb libxcb-devel libX11-xcb libXcursor-devel libXrandr-devel libXinerama-devel libXi-devel libXext-devel libxkbcommon libxkbcommon-devel libxkbcommon-x11-devel mesa-vulkan-drivers wayland-protocols-devel wayland-devel
+          sudo apt update
           
+          sudo apt install -y \
+            libgl1-mesa-dev \
+            libxcb1 libxcb1-dev \
+            libx11-xcb1 \
+            libxcursor-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxi-dev \
+            libxext-dev \
+            libxkbcommon0 libxkbcommon-dev libxkbcommon-x11-dev \
+            mesa-vulkan-drivers \
+            wayland-protocols \
+            libwayland-dev
+            
       - name: Configure build
         env:
           SCCACHE_GHA_ENABLED: "true"
